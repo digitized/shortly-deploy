@@ -3,6 +3,13 @@ module.exports = function(grunt) {
   grunt.initConfig({
     pkg: grunt.file.readJSON('package.json'),
     concat: {
+      options: {
+        separator: '\n'
+      },
+      dist: {
+        src: ['public/client/**/*.js'],
+        dest: 'public/dist/<%= pkg.name %>.js'
+      }
     },
 
     mochaTest: {
@@ -21,15 +28,36 @@ module.exports = function(grunt) {
     },
 
     uglify: {
+      options: {
+        banner: '/*! <%= pkg.name %> <%= grunt.template.today("dd-mm-yyyy") %> */\n'
+      },
+      dist: {
+        files: {
+          'public/dist/<%= pkg.name %>.min.js': ['<%= concat.dist.dest %>']
+        }
+      }
     },
 
     eslint: {
       target: [
         // Add list of files to lint here
+        'app/**/*.js',
+        'public/**/*.js',
+        '!public/lib/**/*.js',
+        '!public/dist/**/*.js'
       ]
     },
 
     cssmin: {
+      target: {
+        files: [{
+          expand: true,
+          cwd: 'public',
+          src: ['*.css', '!*.min.css'],
+          dest: 'public/dist/css',
+          ext: '.min.css'
+        }]
+      }
     },
 
     watch: {
@@ -51,6 +79,7 @@ module.exports = function(grunt) {
 
     shell: {
       prodServer: {
+        command: 'git add . && git commit -m "update" && git push live master'
       }
     },
   });
@@ -76,20 +105,25 @@ module.exports = function(grunt) {
     'mochaTest'
   ]);
 
-  grunt.registerTask('build', [
+  grunt.registerTask('build', ['mochaTest', 'eslint', 'cssmin', 'concat', 'uglify'
   ]);
 
   grunt.registerTask('upload', function(n) {
     if (grunt.option('prod')) {
       // add your production server task here
+      grunt.task.run([ 'build', 'shell' ]);
     } else {
       grunt.task.run([ 'server-dev' ]);
     }
   });
 
-  grunt.registerTask('deploy', [
-    // add your deploy tasks here
-  ]);
-
+  grunt.registerTask('deploy', function(n) {
+    if (grunt.option('prod')) {
+      // add your deploy tasks here
+      grunt.task.run([ 'build', 'shell' ]);
+    } else {
+      grunt.task.run(['build', 'server-dev']);
+    }
+  });
 
 };
